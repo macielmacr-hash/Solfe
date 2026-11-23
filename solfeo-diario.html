@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Solfeo diario</title>
+<style>
+:root{color-scheme:light dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f4ef;--fg:#1d1d1b;--mut:#6b6a64;--card:#fff;--line:#dcd8cc;--ac:#3a5fcd;--acf:#fff;--ok:#2e7d32;--bad:#b3402a}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--fg:#ececea;--mut:#9a9a94;--card:#1f2226;--line:#33373d;--ac:#8fa8ff;--acf:#0c1230;--ok:#6fcf74;--bad:#ff8a73}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#15171a;--fg:#ececea;--mut:#9a9a94;--card:#1f2226;--line:#33373d;--ac:#8fa8ff;--acf:#0c1230;--ok:#6fcf74;--bad:#ff8a73}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:26px;margin:4px 0}h2{font-size:19px;margin:6px 0}
+.mut{color:var(--mut);font-size:15px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:52px;cursor:pointer;width:100%;touch-action:manipulation}
+button.p{background:var(--ac);color:var(--acf);border-color:var(--ac);font-weight:600}
+button:disabled{opacity:.45}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--ac)}
+.meter{position:relative;height:8px;background:var(--line);border-radius:6px;margin:10px 4px}.meter i{position:absolute;top:-5px;width:4px;height:18px;background:var(--ac);transform:translateX(-50%)}.meter b{position:absolute;left:50%;top:-3px;width:2px;height:14px;background:var(--mut)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.lv{text-align:left}.lv b{display:block}
+</style></head><body><main id="app"></main>
+<script>
+const LV=[
+{n:'La tónica',d:'Entona tu “casa”: el Do de cada tonalidad.',p:'Escucha el contexto y canta la tónica con una nota sostenida.',a:'Imagina la tónica sonando en tu cabeza antes de cantarla.'},
+{n:'Eco de una nota',d:'Escucha una nota y devuélvela con tu voz.',p:'Escucha la nota y cántala de vuelta.',a:'Ubica la nota respecto a la tónica y anticipa cómo se siente al cantarla.'},
+{n:'Del nombre al sonido',d:'Canta la sílaba pedida sin que suene antes.',p:'Escucha el contexto y canta la sílaba pedida.',a:'Recuerda cómo se siente ese grado respecto a la tónica.'},
+{n:'Eco de 3 notas',d:'Retén una mini melodía y cántala completa.',p:'Escucha las tres notas y cántalas en orden.',a:'Fija la tónica y agrupa las tres notas en un solo gesto.'},
+{n:'Resolver la tensión',d:'Escucha una nota inestable y canta su resolución.',p:'Escucha la nota y canta hacia dónde quiere ir.',a:'Siente la tensión de la nota y deja que “caiga” hacia el reposo.'},
+{n:'Melodías reales',d:'Canta de memoria el inicio de melodías conocidas.',p:'Escucha el inicio de la melodía y cántalo.',a:'Canta mentalmente la melodía completa antes de empezar.'}];
+const SC=[0,2,4,5,7,9,11],SY=['Do','Re','Mi','Fa','Sol','La','Si'],NM=['Do','Do♯','Re','Re♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
+const $=id=>document.getElementById(id),rnd=a=>a[Math.floor(Math.random()*a.length)],ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const deg=(T,i)=>T+12*Math.floor(i/7)+SC[((i%7)+7)%7];
+let AC;const ac=()=>{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC},now=()=>ac().currentTime+.06;
+const fq=m=>440*Math.pow(2,(m-69)/12);
+function note(m,t,d,g=.2){const c=ac(),o=c.createOscillator(),v=c.createGain(),fl=c.createBiquadFilter();fl.type='lowpass';fl.frequency.setValueAtTime(3000,t);fl.frequency.exponentialRampToValueAtTime(500,t+d);o.type='sawtooth';o.frequency.value=fq(m);v.gain.setValueAtTime(0,t);v.gain.linearRampToValueAtTime(g*.5,t+.012);v.gain.exponentialRampToValueAtTime(.0008,t+d);o.connect(fl);fl.connect(v);v.connect(c.destination);o.start(t);o.stop(t+d+.05)}
+const tri=(T,r,t,d)=>[0,2,4].forEach(x=>note(deg(T,r+x-7),t,d,.11));
+const cad=(T,t)=>[0,3,4,0].forEach((r,j)=>tri(T,r,t+j*.7,.8));
+const rT=()=>ri(52,60),pool=()=>Math.random()<.6?rnd([0,2,4]):ri(0,6);
+const nts=(T,s,t,sp,d)=>s.forEach((i,j)=>note(deg(T,i),t+j*sp,d,.26));
+const chk=(T,s)=>()=>{const t=now();tri(T,0,t,.9);nts(T,s,t+1.1,.9,.85)};
+function g0(){const T=rT();return{L:0,T,seq:[0],k:1,label:'Canta «Do», la tónica',why:'La tónica es el punto de reposo: todas las demás notas se oyen en relación con ella.',play(){cad(T,now())},check:chk(T,[0])}}
+function g1(){const T=rT(),d=pool();return{L:1,T,seq:[d],k:1,label:'Eco: canta la nota que oigas',why:'Era «'+SY[d]+'». Cada grado tiene su propia posición respecto a la tónica.',play(){const t=now();cad(T,t);nts(T,[d],t+3,1,1.4)},check:chk(T,[d])}}
+function g2(){const T=rT(),d=pool();return{L:2,T,seq:[d],k:1,label:'Canta «'+SY[d]+'»',why:'«'+SY[d]+'» es el grado '+(d+1)+'. Aquí no suena antes: lo construyes tú desde la tónica.',play(){cad(T,now())},check:chk(T,[d])}}
+function g3(){const T=rT();let s=[0,0,0];while(s[0]==s[1]||s[1]==s[2])s=[ri(0,6),ri(0,6),ri(0,6)];return{L:3,T,seq:s,k:3,label:'Eco de 3 notas',why:'Eran '+s.map(i=>SY[i]).join(' – ')+'. Piensa cada salto desde la tónica, no desde la nota anterior.',play(){const t=now();cad(T,t);nts(T,s,t+3,.7,.6)},check:chk(T,s)}}
+const RS={1:0,3:2,5:4,6:0};
+function g4(){const T=rT(),d=rnd([1,3,5,6]),r=RS[d];return{L:4,T,seq:[r],k:1,label:'Escucha y canta la resolución',why:'Era «'+SY[d]+'»: tiende a «'+SY[r]+'». Las notas inestables piden moverse hacia el reposo.',play(){const t=now();cad(T,t);nts(T,[d],t+3,1,1.6)},check(){const t=now();tri(T,0,t,.9);nts(T,[d,r],t+1.1,.9,.85)}}}
+const TU=[['Oda a la alegría',[2,2,3,4]],['When the Saints Go Marching In',[0,2,3,4]],['Twinkle, Twinkle, Little Star',[0,0,4,4]],['Joy to the World',[7,6,5,4]]];
+function g5(){const T=rT(),u=rnd(TU),s=u[1];return{L:5,T,seq:s,k:4,label:'Canta el inicio de «'+u[0]+'»',why:'Grados: '+s.map(i=>(i%7)+1).join(' – ')+'. Guarda esta melodía como ancla de esos grados.',play(){const t=now();cad(T,t);nts(T,s,t+3,.55,.5)},check:chk(T,s)}}
+const GEN=[g0,g1,g2,g3,g4,g5];
+function yin(b,sr){const N=1200,tmax=Math.floor(sr/80),tmin=Math.floor(sr/800);let r=0;for(let i=0;i<N;i++)r+=b[i]*b[i];if(Math.sqrt(r/N)<.012)return 0;
+const d=new Float32Array(tmax+2);let run=0;d[0]=1;for(let t=1;t<=tmax;t++){let s=0;for(let i=0;i<N;i++){const x=b[i]-b[i+t];s+=x*x}run+=s;d[t]=s*t/(run||1)}
+for(let t=tmin;t<tmax;t++)if(d[t]<.15){while(t+1<tmax&&d[t+1]<d[t])t++;const a=d[t-1],m=d[t],c=d[t+1];return sr/(t+.5*(a-c)/((a-2*m+c)||1))}return 0}
+let MIC=null;
+async function mic(){if(MIC)return MIC;const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}),c=ac(),src=c.createMediaStreamSource(st),an=c.createAnalyser();an.fftSize=2048;src.connect(an);MIC={st,an,buf:new Float32Array(2048)};return MIC}
+const stopMic=()=>{if(MIC){MIC.st.getTracks().forEach(t=>t.stop());MIC=null}};
+const wrap=x=>((x+6)%12+12)%12-6;
+function live(pc){const r=Math.round(pc),c=(pc-r)*100,e=$('lv');if(e)e.innerHTML=`<div style="font-size:30px;font-weight:700">${NM[((r%12)+12)%12]}</div><div class="mut">${c>0?'+':''}${Math.round(c)}¢</div><div class="meter"><b></b><i style="left:${50+c}%"></i></div>`}
+async function sing(q){const go=$('go'),st=$('st');go.disabled=true;$('pl').disabled=true;st.textContent='Pidiendo acceso al micrófono…';let m;
+try{if(!navigator.mediaDevices)throw{name:'sin soporte'};m=await mic()}catch(e){st.innerHTML='<span class="bad">No pude usar el micrófono ('+((e&&e.name)||'error')+'). Si estás en la vista previa, abre el enlace en el navegador del móvil y concede el permiso. Si sigue bloqueado, este entorno no permite micrófono.</span>';go.disabled=false;$('pl').disabled=false;return}
+const sr=ac().sampleRate,segs=[],maxF=Math.round((q.k*2.2+3)*25);let cur=null,quiet=0,fr=0;st.textContent='🎤 Canta ahora…';
+const iv=setInterval(()=>{fr++;m.an.getFloatTimeDomainData(m.buf);const f=yin(m.buf,sr);
+if(f>0){quiet=0;const pc=(((69+12*Math.log2(f/440)-q.T)%12)+12)%12;live(pc);
+if(cur&&Math.abs(wrap(pc-cur.p0))<.7)cur.v.push(wrap(pc-cur.p0));else{if(cur&&cur.v.length>=6)segs.push(cur);cur={p0:pc,v:[0]}}}
+else{quiet++;if(quiet==2){if(cur&&cur.v.length>=6)segs.push(cur);cur=null}}
+if((segs.length>=q.k&&quiet>=8)||segs.length>q.k||fr>=maxF||(q.k==1&&cur&&cur.v.length>=15)){clearInterval(iv);if(cur&&cur.v.length>=6)segs.push(cur);judge(q,segs)}},40)}
+function judge(q,segs){const tg=q.seq.map(i=>SC[((i%7)+7)%7]),est=segs.map(s=>{const v=s.v.slice().sort((a,b)=>a-b);return s.p0+v[v.length>>1]});let good=est.length>=q.k,out=[],lc=0;
+for(let j=0;j<q.k;j++){const nm=SY[((q.seq[j]%7)+7)%7];if(j>=est.length){good=false;out.push(nm+' ✖ no te oí');continue}const c=Math.round(wrap(est[j]-tg[j])*100),ok=Math.abs(c)<=(q.k>1?65:55);if(!ok)good=false;lc=c;out.push(nm+' '+(ok?'✔':'✖')+' '+(c>0?'+':'')+c+'¢')}
+res(q,good,out.join(' · ')+(!good&&q.k==1&&est.length?(lc>0?' · te quedaste alto':' · te quedaste bajo'):''))}
+const KEY='solfeo_v1';let D={streak:0,last:'',xp:0,h:[[],[],[],[],[],[]]};
+try{const r=localStorage.getItem(KEY);if(r)D=Object.assign(D,JSON.parse(r))}catch(e){}
+while(D.h.length<6)D.h.push([]);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+const rk=()=>[[1800,'Voz de jazz'],[900,'Afinación fluida'],[400,'Voz firme'],[150,'Aprendiz'],[0,'Oyente curioso']].find(x=>D.xp>=x[0])[1];
+const acc=l=>{const h=D.h[l];return h.length?Math.round(100*h.filter(Boolean).length/h.length):null};
+const maxL=()=>{let m=0;while(m<LV.length-1&&D.h[m].length>=8&&acc(m)>=75)m++;return m};
+const day=d=>d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+let S=null;const A=$('app');
+function home(){stopMic();const m=maxL();A.innerHTML=`<h1>Solfeo diario</h1><div class="mut">${rk()} · ${D.xp} XP · Racha <b>${D.streak}</b> día${D.streak==1?'':'s'}</div><div class="mut">Hoy: ${D.t&&D.t.d==day(new Date())?D.t.n:0} / 2 sesiones cortas</div><div class="mut">Atiende → Ancla → Canta → Comprueba</div>
+<button class="p card" id="ses" style="margin-top:14px">▶ Sesión de hoy · 8 ejercicios · ≈5 min</button>
+<h2>Tu camino</h2>${LV.map((l,i)=>`<button class="lv card" data-l="${i}" ${i>m?'disabled':''}><div class="row"><b>${i+1}. ${l.n}</b><span class="mut">${i>m?'🔒':acc(i)===null?'nuevo':acc(i)+'%'}</span></div><span class="mut">${l.d}</span><div class="bar"><i style="width:${acc(i)||0}%"></i></div></button>`).join('')}
+<details class="card"><summary>Por qué funciona este protocolo</summary><p class="mut">• Imaginar el sonido antes de cantarlo (audiación) activa áreas auditivas y motoras.<br>• Cantar une percepción y movimiento: tu voz es el instrumento que afinas.<br>• Ver tu afinación en tiempo real acelera el aprendizaje (biofeedback).<br>• Mezclar niveles y repetir lo que fallas es una dificultad deseable.<br>• Sesiones cortas y espaciadas, con sueño entre medias, consolidan mejor.</p></details>
+<p class="mut">La app mide la <b>altura</b> de tu voz (afinación), no reconoce las palabras “do, re, mi”. Puedes tararear en voz baja. Usa auriculares, un sitio no muy ruidoso y permite el micrófono. Para abrir el siguiente nivel: 75 % de aciertos (mínimo 8 ejercicios).</p>`;
+$('ses').onclick=()=>start(null);A.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>start(+b.dataset.l))}
+function start(l){const m=maxL(),it=[];for(let i=0;i<8;i++)it.push(GEN[l!==null?l:(Math.random()<.55?m:ri(0,m))]());S={it,i:0,ok:0};ac();show()}
+const sp=n=>{const e=$('sp');if(e)e.innerHTML=['Atiende','Ancla','Canta','Comprueba'].map((x,i)=>i+1==n?'<b>'+(i+1)+' '+x+'</b>':(i+1)+' '+x).join(' · ')};
+function show(){const q=S.it[S.i];S.an=0;
+A.innerHTML=`<div class="row"><button id="x" style="width:auto;min-height:40px;padding:6px 12px">✕</button><span class="mut">${S.i+1} / ${S.it.length} · ${LV[q.L].n}</span></div><div class="bar"><i style="width:${S.i*100/S.it.length}%"></i></div><div class="mut" id="sp"></div>
+<div class="card"><p><b>${q.label}</b><br>${LV[q.L].p}</p><button class="p" id="pl">🔊 Escuchar</button></div><div id="z"></div>`;
+$('x').onclick=home;sp(1);$('pl').onclick=()=>{q.play();if(!S.an){S.an=1;sp(2);anc(q)}}}
+function anc(q){$('z').innerHTML=`<div class="card"><b>② Ancla</b><p>${LV[q.L].a}</p><button class="p" id="an">Lo tengo · seguir</button></div>`;$('an').onclick=()=>{sp(3);ui(q)}}
+function ui(q){$('z').innerHTML=`<div class="card"><p class="mut">Pulsa “Cantar” y canta ${q.k>1?'las '+q.k+' notas seguidas, con una pausa breve entre ellas':'una nota sostenida'}. Puedes tararear.</p><button class="p" id="go">🎤 Cantar</button><p id="st" class="mut"></p><div id="lv" style="text-align:center;min-height:90px"></div></div>`;$('go').onclick=()=>sing(q)}
+function res(q,good,msg){sp(4);try{navigator.vibrate&&navigator.vibrate(good?18:[35,40,35])}catch(e){}
+let bx='';if(good){S.ok++;S.c=(S.c||0)+1;let x=10+Math.min(S.c,5)*2,g='';if(Math.random()<.17){x*=2;g=' ✨ ¡Voz de oro: XP ×2!'}D.xp+=x;S.xp=(S.xp||0)+x;bx='+'+x+' XP'+(S.c>2?' · combo ×'+S.c:'')+g}else{S.c=0;if(S.it.length<11){S.it.push(GEN[q.L]());bx='Volverá a aparecer: recuperar lo que falla es lo que más fija el aprendizaje.'}}
+const h=D.h[q.L];h.push(good);if(h.length>20)h.shift();save();
+$('z').innerHTML=`<div class="card"><h2 class="${good?'ok':'bad'}">${good?'✔ Bien afinado':'✖ Casi'}</h2><p>${msg}</p><p>${q.why}</p><p class="mut">${bx}</p><button id="ck">👂 Comprobar escuchando</button></div><button class="p" id="nx">${S.i<S.it.length-1?'Siguiente':'Terminar'}</button>`;
+$('ck').onclick=()=>q.check();$('nx').onclick=()=>{S.i++;S.i<S.it.length?show():fin()}}
+function fin(){stopMic();const t=new Date(),y=new Date(t.getTime()-864e5),td=day(t);if(D.last!=td){D.streak=D.last==day(y)?D.streak+1:1;D.last=td}if(!D.t||D.t.d!=td)D.t={d:td,n:0};D.t.n++;save();
+A.innerHTML=`<h1>${S.ok} / ${S.it.length}</h1><p><b>+${S.xp||0} XP</b> · Racha: ${D.streak} día${D.streak==1?'':'s'} · Sesiones hoy: ${D.t.n}</p><div class="card mut">Tu cerebro consolida lo practicado mientras duermes. Dos sesiones cortas en el día rinden más que una larga: vuelve esta tarde o mañana.</div><button class="p" id="h">Volver al inicio</button>`;$('h').onclick=home}
+home();
+</script></body></html>
